@@ -19,6 +19,14 @@ async function bootstrap() {
     credentials: false,
   });
 
+  // Normalize duplicate slashes in request URLs (e.g. //auth/signup-owner -> /auth/signup-owner)
+  app.use((req: any, res: any, next: any) => {
+    if (req.url) {
+      req.url = req.url.replace(/\/{2,}/g, '/');
+    }
+    next();
+  });
+
   // Enable Global Validation Pipes
   app.useGlobalPipes(
     new ValidationPipe({

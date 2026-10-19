@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
@@ -49,7 +49,7 @@ export default function LoginPage() {
     const loginEmail = customCredentials ? customCredentials.e : email;
     const loginPassword = customCredentials ? customCredentials.p : password;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 
     try {
       const res = await fetch(`${apiUrl}/auth/login`, {
@@ -76,7 +76,7 @@ export default function LoginPage() {
   const handleQuickLogin = async (roleName: string) => {
     setError('');
     setDemoLoading(roleName);
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
     const deviceId = getOrCreateDeviceId();
 
     try {

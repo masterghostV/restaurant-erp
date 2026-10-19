@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useStore } from '../../../store/useStore';
@@ -56,7 +56,7 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState(toDateInputValue(thirtyDaysAgo));
   const [endDate, setEndDate] = useState(toDateInputValue(today));
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
   const restaurantId = user?.restaurantId || (user?.role === 'SUPER_ADMIN' ? activeRestaurantId : '') || '';
 
   useEffect(() => {

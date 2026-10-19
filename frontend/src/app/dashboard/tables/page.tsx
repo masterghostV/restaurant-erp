@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useStore } from '../../../store/useStore';
@@ -28,7 +28,7 @@ function readError(data: any, fallback: string) {
 
 export default function TablesPage() {
   const { user, token, socket, activeRestaurantId, fetchRestaurantList } = useStore();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
   const restaurantId = user?.restaurantId || (user?.role === 'SUPER_ADMIN' ? activeRestaurantId : '') || '';
 
   const [tables, setTables] = useState<Table[]>([]);

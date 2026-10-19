@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useStore } from '../../../store/useStore';
@@ -65,7 +65,7 @@ export default function CashierPanel() {
   const [success, setSuccess] = useState('');
   const [processingPayment, setProcessingPayment] = useState(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
   const restaurantId = user?.restaurantId || (user?.role === 'SUPER_ADMIN' ? activeRestaurantId : '') || '';
 
   // Super Admin needs the restaurant list loaded so they can pick one

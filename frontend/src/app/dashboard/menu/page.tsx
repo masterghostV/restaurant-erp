@@ -1,4 +1,4 @@
-'use intelligence';
+﻿'use intelligence';
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -71,7 +71,7 @@ export default function MenuPanel() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
   const restaurantId = user?.restaurantId || (user?.role === 'SUPER_ADMIN' ? activeRestaurantId : '') || '';
 
   useEffect(() => {

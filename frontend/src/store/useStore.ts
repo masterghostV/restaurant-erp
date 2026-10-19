@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
 
 interface User {
@@ -95,7 +95,7 @@ export const useStore = create<AppState>((set, get) => ({
   fetchNotifications: async () => {
     const { token } = get();
     if (!token) return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
     try {
       const res = await fetch(`${apiUrl}/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -111,7 +111,7 @@ export const useStore = create<AppState>((set, get) => ({
   markAllNotificationsRead: async () => {
     const { token, notifications } = get();
     if (!token) return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
     try {
       const res = await fetch(`${apiUrl}/notifications/read-all`, {
         method: 'PATCH',
@@ -131,7 +131,7 @@ export const useStore = create<AppState>((set, get) => ({
   fetchRestaurantList: async () => {
     const { token, user, activeRestaurantId } = get();
     if (!token || user?.role !== 'SUPER_ADMIN') return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
     try {
       const res = await fetch(`${apiUrl}/restaurants`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -168,7 +168,7 @@ export const useStore = create<AppState>((set, get) => ({
     // Disconnect old socket
     if (socket) socket.disconnect();
 
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+    const socketUrl = (process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000').replace(/\/+$/, '');
     const newSocket = io(socketUrl, {
       transports: ['websocket'],
       auth: { token },

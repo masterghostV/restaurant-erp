@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useStore } from '../../../store/useStore';
@@ -48,7 +48,7 @@ interface RevenueDetail {
 export default function SiteOwnerPanel() {
   const router = useRouter();
   const { user, token } = useStore();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

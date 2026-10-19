@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
@@ -13,7 +13,7 @@ export default function ChangePasswordModal({ onClose }: { onClose: () => void }
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

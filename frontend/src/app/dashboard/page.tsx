@@ -1,4 +1,4 @@
-'use intelligence';
+﻿'use intelligence';
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -49,7 +49,7 @@ export default function DashboardHome() {
     }
 
     const fetchStats = async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
       const endpoint =
         user.role === 'SUPER_ADMIN'
           ? `${apiUrl}/dashboard/super-admin`

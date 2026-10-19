@@ -1,4 +1,4 @@
-'use intelligence';
+﻿'use intelligence';
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -48,7 +48,7 @@ export default function ComplaintsPanel() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/+$/, '');
 
   const fetchTickets = async () => {
     if (!token) return;
