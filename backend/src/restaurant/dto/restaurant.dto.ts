@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber, IsOptional, IsEmail, MinLength, IsIn } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, IsOptional, IsEmail, MinLength, IsIn, IsInt, Min, Max, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateRestaurantDto {
@@ -51,31 +51,41 @@ export class UpdateRestaurantStatusDto {
   status: string;
 }
 
+// BILLING is set by the waiter's "send to cashier" button, so it must stay allowed.
+export const TABLE_STATUSES = ['AVAILABLE', 'OCCUPIED', 'BILLING', 'RESERVED', 'CLEANING'];
+
 export class CreateTableDto {
   @ApiProperty({ example: 'Table 5' })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(30)
   number: string;
 
-  @ApiProperty({ example: 4 })
-  @IsNotEmpty()
-  @IsNumber()
+  @ApiProperty({ example: 4, description: 'How many guests the table seats (1-50)' })
+  @IsInt()
+  @Min(1)
+  @Max(50)
   capacity: number;
 
-  @ApiProperty({ example: 'AVAILABLE', required: false })
+  @ApiProperty({ example: 'AVAILABLE', required: false, enum: TABLE_STATUSES })
   @IsOptional()
-  @IsString()
+  @IsIn(TABLE_STATUSES)
   status?: string;
 
-  @ApiProperty({ example: 'restaurant-uuid' })
-  @IsNotEmpty()
+  @ApiProperty({
+    example: 'restaurant-uuid',
+    required: false,
+    description:
+      'Only used when the Site Owner adds a table. Owners and Managers always add to their own restaurant — this field is ignored for them.',
+  })
+  @IsOptional()
   @IsString()
-  restaurantId: string;
+  restaurantId?: string;
 }
 
 export class UpdateTableStatusDto {
-  @ApiProperty({ example: 'OCCUPIED' })
+  @ApiProperty({ example: 'OCCUPIED', enum: TABLE_STATUSES })
   @IsNotEmpty()
-  @IsString()
+  @IsIn(TABLE_STATUSES)
   status: string;
 }

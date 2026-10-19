@@ -39,6 +39,11 @@ async function main() {
     { name: 'SUPER_ADMIN', description: 'SaaS Platform Owner', perms: ['full_access'] },
     { name: 'OWNER', description: 'Restaurant Outlet Owner', perms: ['view_dashboard', 'submit_complaint', 'resolve_complaint'] },
     {
+      name: 'MANAGER',
+      description: 'Restaurant manager — runs the floor (tables, orders) for one outlet',
+      perms: ['view_dashboard', 'update_order_status', 'submit_complaint', 'resolve_complaint'],
+    },
+    {
       name: 'CASHIER',
       description: 'Checkout desk manager',
       perms: ['view_dashboard', 'create_order', 'process_payment', 'submit_complaint'],
@@ -96,6 +101,7 @@ async function main() {
   const usersList = [
     { email: 'admin@restaurant.com', name: 'Platform Admin', roleName: 'SUPER_ADMIN', isStaff: false },
     { email: 'owner@restaurant.com', name: 'Mr. John Owner', roleName: 'OWNER', isStaff: true, salary: 120000 },
+    { email: 'manager@restaurant.com', name: 'Maya Manager', roleName: 'MANAGER', isStaff: true, salary: 45000 },
     { email: 'cashier@restaurant.com', name: 'Robert Cashier', roleName: 'CASHIER', isStaff: true, salary: 25000 },
     { email: 'waiter@restaurant.com', name: 'Sam Waiter', roleName: 'WAITER', isStaff: true, salary: 18000 },
     { email: 'kitchen@restaurant.com', name: 'Chef Mario', roleName: 'KITCHEN', isStaff: true, salary: 40000 },

@@ -114,7 +114,13 @@ export default function WaiterPanel() {
 
     // Keep table statuses in sync across devices (e.g. cashier freeing a
     // table back up after payment, or this same waiter finishing one).
-    socket.on('tableUpdate', (updatedTable: Table) => {
+    socket.on('tableUpdate', (updatedTable: Table & { deleted?: boolean }) => {
+      // A table the owner/manager just removed: drop it from the list.
+      if (updatedTable.deleted) {
+        setTables((prev) => prev.filter((t) => t.id !== updatedTable.id));
+        setSelectedTable((prev) => (prev?.id === updatedTable.id ? null : prev));
+        return;
+      }
       setTables((prev) => {
         const idx = prev.findIndex((t) => t.id === updatedTable.id);
         if (idx !== -1) {

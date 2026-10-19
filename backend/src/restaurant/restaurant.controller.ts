@@ -99,28 +99,37 @@ export class RestaurantController {
 
   // Tables Endpoints
   @Post('tables')
-  @Roles('SUPER_ADMIN', 'OWNER')
-  @ApiOperation({ summary: 'Create a dining table' })
-  async createTable(@Body() dto: CreateTableDto) {
-    return this.restaurantService.createTable(dto);
+  @Roles('SUPER_ADMIN', 'OWNER', 'MANAGER')
+  @ApiOperation({
+    summary:
+      'Add a dining table. Owners/Managers add to their own restaurant; the Site Owner must pass restaurantId.',
+  })
+  async createTable(@Request() req, @Body() dto: CreateTableDto) {
+    return this.restaurantService.createTable(dto, { role: req.user.role, restaurantId: req.user.restaurantId });
   }
 
   @Get(':restaurantId/tables')
-  @ApiOperation({ summary: 'Get all tables of a restaurant' })
-  async findTables(@Param('restaurantId') restaurantId: string) {
-    return this.restaurantService.findTablesByRestaurant(restaurantId);
+  @ApiOperation({ summary: 'Get all tables of your restaurant' })
+  async findTables(@Request() req, @Param('restaurantId') restaurantId: string) {
+    return this.restaurantService.findTablesByRestaurant(restaurantId, {
+      role: req.user.role,
+      restaurantId: req.user.restaurantId,
+    });
   }
 
   @Put('tables/:id/status')
-  @ApiOperation({ summary: 'Update table status (e.g. occupied, available)' })
-  async updateTableStatus(@Param('id') id: string, @Body() dto: UpdateTableStatusDto) {
-    return this.restaurantService.updateTableStatus(id, dto.status);
+  @ApiOperation({ summary: 'Update table status (e.g. occupied, available) — own restaurant only' })
+  async updateTableStatus(@Request() req, @Param('id') id: string, @Body() dto: UpdateTableStatusDto) {
+    return this.restaurantService.updateTableStatus(id, dto.status, {
+      role: req.user.role,
+      restaurantId: req.user.restaurantId,
+    });
   }
 
   @Delete('tables/:id')
-  @Roles('SUPER_ADMIN', 'OWNER')
-  @ApiOperation({ summary: 'Delete a table' })
-  async deleteTable(@Param('id') id: string) {
-    return this.restaurantService.deleteTable(id);
+  @Roles('SUPER_ADMIN', 'OWNER', 'MANAGER')
+  @ApiOperation({ summary: 'Delete a table that has no order history — own restaurant only' })
+  async deleteTable(@Request() req, @Param('id') id: string) {
+    return this.restaurantService.deleteTable(id, { role: req.user.role, restaurantId: req.user.restaurantId });
   }
 }

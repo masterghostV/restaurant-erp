@@ -26,6 +26,7 @@ import {
   LineChart,
   Building2,
   Users,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -39,13 +40,14 @@ const sidebarItems: SidebarItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, allowedRoles: ['SUPER_ADMIN', 'OWNER'] },
   { name: 'Site Owner Panel', href: '/dashboard/site-owner', icon: Building2, allowedRoles: ['SUPER_ADMIN'] },
   { name: 'Staff Management', href: '/dashboard/staff', icon: Users, allowedRoles: ['SUPER_ADMIN', 'OWNER'] },
+  { name: 'Tables', href: '/dashboard/tables', icon: LayoutGrid, allowedRoles: ['SUPER_ADMIN', 'OWNER', 'MANAGER'] },
   { name: 'Reports & Analytics', href: '/dashboard/reports', icon: LineChart, allowedRoles: ['SUPER_ADMIN', 'OWNER'] },
   { name: 'POS Billing', href: '/dashboard/cashier', icon: ConciergeBell, allowedRoles: ['SUPER_ADMIN', 'CASHIER'] },
   { name: 'Order Taker', href: '/dashboard/waiter', icon: Utensils, allowedRoles: ['SUPER_ADMIN', 'WAITER'] },
   { name: 'Kitchen KOT', href: '/dashboard/kitchen', icon: ChefHat, allowedRoles: ['SUPER_ADMIN', 'KITCHEN'] },
   { name: 'Inventory Store', href: '/dashboard/inventory', icon: PackageCheck, allowedRoles: ['SUPER_ADMIN', 'OWNER', 'INVENTORY_STAFF'] },
   { name: 'Menu & Recipes', href: '/dashboard/menu', icon: BookOpenCheck, allowedRoles: ['SUPER_ADMIN', 'OWNER', 'MENU_MANAGER'] },
-  { name: 'Complaints', href: '/dashboard/complaints', icon: AlertOctagon, allowedRoles: ['SUPER_ADMIN', 'OWNER', 'CASHIER', 'WAITER', 'KITCHEN', 'INVENTORY_STAFF', 'MENU_MANAGER'] },
+  { name: 'Complaints', href: '/dashboard/complaints', icon: AlertOctagon, allowedRoles: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'CASHIER', 'WAITER', 'KITCHEN', 'INVENTORY_STAFF', 'MENU_MANAGER'] },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings, allowedRoles: ['SUPER_ADMIN', 'OWNER'] },
 ];
 

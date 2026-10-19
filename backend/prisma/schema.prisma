@@ -130,7 +130,7 @@ model Table {
   id           String     @id @default(uuid())
   number       String
   capacity     Int
-  status       String     @default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED, CLEANING
+  status       String     @default("AVAILABLE") // AVAILABLE, OCCUPIED, BILLING, RESERVED, CLEANING
   restaurantId String     @map("restaurant_id")
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   qrCode       String?    @map("qr_code")

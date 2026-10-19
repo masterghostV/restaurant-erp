@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto, UpdateOrderStatusDto, RecordPaymentDto } from './dto/order.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+
+export type OrderCaller = { role: string; restaurantId: string | null };
 
 @Injectable()
 export class OrderService {
@@ -10,11 +12,51 @@ export class OrderService {
     private realtime: RealtimeGateway,
   ) {}
 
-  async createOrder(dto: CreateOrderDto) {
-    // 1. Fetch details of all menu items in the order
+  // Orders belong to one restaurant. Staff may only touch their own
+  // restaurant's orders; the Site Owner (SUPER_ADMIN) may touch any.
+  private assertRestaurantAccess(caller: OrderCaller, restaurantId: string) {
+    if (caller.role === 'SUPER_ADMIN') return;
+    if (!caller.restaurantId || caller.restaurantId !== restaurantId) {
+      throw new ForbiddenException('You can only access orders from your own restaurant');
+    }
+  }
+
+  private async assertOrderAccess(orderId: string, caller: OrderCaller) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { restaurantId: true } });
+    if (!order) throw new NotFoundException('Order not found');
+    this.assertRestaurantAccess(caller, order.restaurantId);
+  }
+
+  private async assertTableAccess(tableId: string, caller: OrderCaller) {
+    const table = await this.prisma.table.findUnique({ where: { id: tableId }, select: { restaurantId: true } });
+    if (!table) throw new NotFoundException('Table not found');
+    this.assertRestaurantAccess(caller, table.restaurantId);
+  }
+
+  async createOrder(dto: CreateOrderDto, caller: OrderCaller) {
+    // The restaurant comes from who is logged in, not from the request body,
+    // so a waiter can never send an order into another restaurant's kitchen.
+    const restaurantId = caller.role === 'SUPER_ADMIN' ? dto.restaurantId : caller.restaurantId;
+    if (!restaurantId) {
+      throw new ForbiddenException('You are not associated with a restaurant');
+    }
+    dto.restaurantId = restaurantId;
+
+    if (!dto.items || dto.items.length === 0) {
+      throw new BadRequestException('An order needs at least one item');
+    }
+
+    if (dto.tableId) {
+      const table = await this.prisma.table.findUnique({ where: { id: dto.tableId } });
+      if (!table || table.restaurantId !== restaurantId) {
+        throw new NotFoundException('That table does not exist in this restaurant');
+      }
+    }
+
+    // 1. Fetch details of all menu items in the order (only this restaurant's)
     const menuItemIds = dto.items.map((i) => i.menuItemId);
     const menuItems = await this.prisma.menuItem.findMany({
-      where: { id: { in: menuItemIds } },
+      where: { id: { in: menuItemIds }, category: { restaurantId } },
     });
 
     if (menuItems.length !== menuItemIds.length) {
@@ -167,7 +209,8 @@ export class OrderService {
     return order;
   }
 
-  async findOrdersByRestaurant(restaurantId: string) {
+  async findOrdersByRestaurant(restaurantId: string, caller: OrderCaller) {
+    this.assertRestaurantAccess(caller, restaurantId);
     return this.prisma.order.findMany({
       where: { restaurantId },
       include: {
@@ -181,7 +224,7 @@ export class OrderService {
     });
   }
 
-  async findOneOrder(id: string) {
+  async findOneOrder(id: string, caller: OrderCaller) {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
@@ -194,10 +237,12 @@ export class OrderService {
     });
 
     if (!order) throw new NotFoundException('Order not found');
+    this.assertRestaurantAccess(caller, order.restaurantId);
     return order;
   }
 
-  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
+  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto, caller: OrderCaller) {
+    await this.assertOrderAccess(id, caller);
     const order = await this.prisma.order.update({
       where: { id },
       data: { status: dto.status },
@@ -241,7 +286,8 @@ export class OrderService {
    * cancelling an order would permanently "lose" that inventory even
    * though the food was never actually made.
    */
-  async cancelOrder(id: string, reason?: string) {
+  async cancelOrder(id: string, caller: OrderCaller, reason?: string) {
+    await this.assertOrderAccess(id, caller);
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: { orderItems: true, table: true },
@@ -340,7 +386,8 @@ export class OrderService {
     return updatedOrder;
   }
 
-  async recordPayment(id: string, dto: RecordPaymentDto) {
+  async recordPayment(id: string, dto: RecordPaymentDto, caller: OrderCaller) {
+    await this.assertOrderAccess(id, caller);
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: { table: true },
@@ -423,7 +470,7 @@ export class OrderService {
     });
 
     const salesSum = todayOrders.reduce((acc, curr) => acc + curr.totalPrice, 0);
-    this.realtime.sendOwnerDashboardUpdate({
+    this.realtime.sendOwnerDashboardUpdate(order.restaurantId, {
       sales: salesSum,
       completedOrders: todayOrders.length,
     });
@@ -437,7 +484,8 @@ export class OrderService {
    * different times), combined into one logical bill. Used by the Cashier
    * panel once the Waiter has clicked "Finish Table".
    */
-  async getTableBill(tableId: string) {
+  async getTableBill(tableId: string, caller: OrderCaller) {
+    await this.assertTableAccess(tableId, caller);
     const table = await this.prisma.table.findUnique({ where: { id: tableId } });
     if (!table) throw new NotFoundException('Table not found');
 
@@ -490,7 +538,8 @@ export class OrderService {
    * ever actually applied once, on the payment that finally completes
    * the bill.
    */
-  async recordTablePayment(tableId: string, dto: RecordPaymentDto) {
+  async recordTablePayment(tableId: string, dto: RecordPaymentDto, caller: OrderCaller) {
+    await this.assertTableAccess(tableId, caller);
     const table = await this.prisma.table.findUnique({ where: { id: tableId } });
     if (!table) throw new NotFoundException('Table not found');
 
@@ -617,7 +666,7 @@ export class OrderService {
       });
 
       const salesSum = todayOrders.reduce((acc, curr) => acc + curr.totalPrice, 0);
-      this.realtime.sendOwnerDashboardUpdate({
+      this.realtime.sendOwnerDashboardUpdate(table.restaurantId, {
         sales: salesSum,
         completedOrders: todayOrders.length,
       });

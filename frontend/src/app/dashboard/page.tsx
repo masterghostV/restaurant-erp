@@ -33,6 +33,7 @@ export default function DashboardHome() {
       KITCHEN: '/dashboard/kitchen',
       INVENTORY_STAFF: '/dashboard/inventory',
       MENU_MANAGER: '/dashboard/menu',
+      MANAGER: '/dashboard/tables',
     };
     if (opsRedirects[user.role]) {
       router.push(opsRedirects[user.role]);

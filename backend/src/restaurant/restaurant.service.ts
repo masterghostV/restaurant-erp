@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRestaurantDto, CreateTableDto, UpdateTableStatusDto, OnboardRestaurantDto } from './dto/restaurant.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import * as bcrypt from 'bcryptjs';
+
+export type TableCaller = { role: string; restaurantId: string | null };
 
 @Injectable()
 export class RestaurantService {
@@ -273,26 +275,81 @@ export class RestaurantService {
   }
 
   // Table Operations
-  async createTable(dto: CreateTableDto) {
-    return this.prisma.table.create({
-      data: {
-        number: dto.number,
-        capacity: dto.capacity,
-        status: dto.status || 'AVAILABLE',
-        restaurantId: dto.restaurantId,
-        qrCode: `TABLE_QR_${dto.number}_${Date.now()}`,
-      },
-    });
+  //
+  // Tables are private to one restaurant. Every method below works out which
+  // restaurant is allowed from the logged-in user (never from request data):
+  // an Owner or Manager can only touch their own restaurant's tables, while
+  // the Site Owner (SUPER_ADMIN) can act on any restaurant.
+  private assertRestaurantAccess(caller: TableCaller, restaurantId: string) {
+    if (caller.role === 'SUPER_ADMIN') return;
+    if (!caller.restaurantId || caller.restaurantId !== restaurantId) {
+      throw new ForbiddenException('You can only manage tables in your own restaurant');
+    }
   }
 
-  async findTablesByRestaurant(restaurantId: string) {
+  async createTable(dto: CreateTableDto, caller: TableCaller) {
+    let restaurantId: string;
+    if (caller.role === 'SUPER_ADMIN') {
+      if (!dto.restaurantId) {
+        throw new BadRequestException('restaurantId is required when a Site Owner adds a table');
+      }
+      restaurantId = dto.restaurantId;
+    } else {
+      if (!caller.restaurantId) {
+        throw new ForbiddenException('You are not associated with a restaurant');
+      }
+      restaurantId = caller.restaurantId;
+    }
+
+    const restaurant = await this.prisma.restaurant.findUnique({ where: { id: restaurantId } });
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found');
+    }
+
+    const number = dto.number.trim();
+    if (!number) {
+      throw new BadRequestException('Table name/number cannot be empty');
+    }
+
+    // Two tables with the same name in one restaurant would be impossible to
+    // tell apart on the waiter screen, so reject duplicates (ignoring case).
+    const duplicate = await this.prisma.table.findFirst({
+      where: { restaurantId, number: { equals: number, mode: 'insensitive' } },
+    });
+    if (duplicate) {
+      throw new BadRequestException(`A table named "${duplicate.number}" already exists in this restaurant`);
+    }
+
+    const table = await this.prisma.table.create({
+      data: {
+        number,
+        capacity: dto.capacity,
+        status: dto.status || 'AVAILABLE',
+        restaurantId,
+        qrCode: `TABLE_QR_${number}_${Date.now()}`,
+      },
+    });
+
+    // Waiter screens in this restaurant pick the new table up immediately.
+    this.realtime.sendTableUpdate(table);
+    return table;
+  }
+
+  async findTablesByRestaurant(restaurantId: string, caller: TableCaller) {
+    this.assertRestaurantAccess(caller, restaurantId);
     return this.prisma.table.findMany({
       where: { restaurantId },
       orderBy: { number: 'asc' },
     });
   }
 
-  async updateTableStatus(id: string, status: string) {
+  async updateTableStatus(id: string, status: string, caller: TableCaller) {
+    const existing = await this.prisma.table.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Table not found');
+    }
+    this.assertRestaurantAccess(caller, existing.restaurantId);
+
     const table = await this.prisma.table.update({
       where: { id },
       data: { status },
@@ -301,9 +358,25 @@ export class RestaurantService {
     return table;
   }
 
-  async deleteTable(id: string) {
-    return this.prisma.table.delete({
-      where: { id },
-    });
+  async deleteTable(id: string, caller: TableCaller) {
+    const existing = await this.prisma.table.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Table not found');
+    }
+    this.assertRestaurantAccess(caller, existing.restaurantId);
+
+    // Orders keep a reference to their table (for bills and reports), so a
+    // table that has ever had an order can't be removed without breaking that
+    // history. Fail with a clear message instead of a raw database error.
+    const orderCount = await this.prisma.order.count({ where: { tableId: id } });
+    if (orderCount > 0) {
+      throw new BadRequestException(
+        `Table "${existing.number}" has ${orderCount} order(s) in its history, so it can't be deleted. Set its status to RESERVED to stop using it.`,
+      );
+    }
+
+    await this.prisma.table.delete({ where: { id } });
+    this.realtime.sendTableUpdate({ ...existing, deleted: true });
+    return { ok: true };
   }
 }

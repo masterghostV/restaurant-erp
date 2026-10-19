@@ -152,6 +152,12 @@ export const useStore = create<AppState>((set, get) => ({
   setActiveRestaurantId: (id) => {
     localStorage.setItem('erp_active_restaurant', id);
     set({ activeRestaurantId: id });
+    // The Site Owner belongs to no restaurant, so live updates only flow for
+    // the one they're currently looking at. Tell the server when it changes.
+    const { socket, user } = get();
+    if (socket && socket.connected && user?.role === 'SUPER_ADMIN') {
+      socket.emit('watchRestaurant', id);
+    }
   },
 
   connectSocket: () => {
@@ -173,6 +179,10 @@ export const useStore = create<AppState>((set, get) => ({
       // Fallback join in case the server couldn't authenticate the
       // handshake token (e.g. token missing/expired at connect time).
       newSocket.emit('join', user.id);
+      const watching = get().activeRestaurantId;
+      if (user.role === 'SUPER_ADMIN' && watching) {
+        newSocket.emit('watchRestaurant', watching);
+      }
     });
 
     // The server now only ever emits 'notification' to this user's private

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { UserPlus, ShieldAlert, ShieldCheck, Copy, Check } from 'lucide-react';
 
 const ROLE_OPTIONS = [
+  { value: 'MANAGER', label: 'Manager (can add tables)' },
   { value: 'WAITER', label: 'Waiter' },
   { value: 'CASHIER', label: 'Cashier' },
   { value: 'KITCHEN', label: 'Kitchen Staff' },

@@ -55,11 +55,21 @@ A single account that sits above every restaurant, never tied to any one of them
 - `GET /restaurants/overview` (Site Owner only) — every restaurant side by side, with revenue, order counts, staff counts, and status, plus platform-wide totals
 - `GET /restaurants/:id/revenue` (Site Owner only) — one restaurant's revenue in detail: all-time total, a day-by-day trend for the last 30 days, and a payment-method breakdown
 
+**7. Table management (Owner or Manager) — so orders reach the kitchen**
+- A restaurant's **Owner** or **Manager** adds the dining tables on the new **Tables** page (`/dashboard/tables`): a name/number and how many seats.
+- Waiters then see those tables on the **Order Taker** screen. When a waiter sends an order for a table, it appears instantly on that restaurant's **Kitchen KOT** screen.
+- New **MANAGER** role: create one from **Staff Management** (it gets a generated login ID like `maya.manager@your-restaurant.com`). A Manager lands on the Tables page after login and can add/delete tables.
+- Rules enforced by the server: names must be unique within a restaurant (not case-sensitive); seats must be 1–50; a table that already has orders can't be deleted (set it to RESERVED instead); everyone can only touch their own restaurant's tables.
+- **Orders and realtime are now private per restaurant.** Before this change, every live update (new orders, table changes, stock changes, daily sales) was broadcast to every connected screen in every restaurant. They now go only to the restaurant they belong to, and an order can no longer be created with another restaurant's table or menu items. The Site Owner sees live updates for whichever restaurant is selected in their panel.
+- **Self-check:** from the `backend` folder run `npx ts-node scripts/check-tables.ts`. It exercises the whole manager → waiter → kitchen flow against a fake in-memory database (it never touches your real data) and should end with `36 passed, 0 failed`.
+- Endpoints: `POST /restaurants/tables` (SUPER_ADMIN, OWNER, MANAGER), `GET /restaurants/:restaurantId/tables`, `PUT /restaurants/tables/:id/status`, `DELETE /restaurants/tables/:id` (SUPER_ADMIN, OWNER, MANAGER).
+
 ---
 
 ## 2. Known limitations — read this before you start
 
 - **Frontend screens now exist for all 6 features** (see below), but **none of it has been tested against a live, running database.** Everything was verified by careful code review, full TypeScript compilation, and a complete production `next build` — not by actually clicking through it against real data. Test each flow yourself once it's running before relying on it for anything real.
+- **Complaint live-updates are still broadcast to all restaurants.** The complaints table has no restaurant link yet, so those events can't be limited to one restaurant without a database change. Other by-ID endpoints outside orders and tables (menu, inventory, complaints, settings) have not been audited for cross-restaurant access either.
 - **Email sending needs real SMTP configured to actually work.** Without `SMTP_HOST` set in `backend/.env`, OTP codes and other emails are printed to the backend's console log instead of being sent — fine for local testing, not fine for real users.
 - **New frontend pages, one per feature:**
   - `/register` — Owner sign-up (rewritten; no longer calls the removed `/auth/register`, now calls `/auth/signup-owner`)
@@ -144,7 +154,7 @@ psql -U postgres -d restaurant_erp -c "UPDATE users SET is_verified = true;"
 npm run prisma:seed
 npm run seed:site-owner
 ```
-`prisma:seed` creates a demo restaurant with sample menu/orders and a demo Owner (`admin@restaurant.com` / `password123`) — useful for exploring the core POS features.
+`prisma:seed` creates a demo restaurant ("Gourmet Garden Outlet") with sample menu/tables and one demo login per role, all with the password `password123`: `admin@restaurant.com` (platform admin), `owner@restaurant.com`, `manager@restaurant.com`, `cashier@restaurant.com`, `waiter@restaurant.com`, `kitchen@restaurant.com`, `inventory@restaurant.com`, `menu@restaurant.com`. Useful for exploring the core POS features.
 `seed:site-owner` creates your platform-level Site Owner account (`tomsiteowner` / `tom_owner`, or whatever you set in `.env`).
 
 ### Step 5 — Start the backend
@@ -206,7 +216,9 @@ docker exec -it erp-backend npm run seed:site-owner
 | Account | Login | Password | Role |
 |---|---|---|---|
 | Site Owner | `tomsiteowner` | `tom_owner` | SUPER_ADMIN — platform-wide, not tied to any restaurant |
-| Demo Owner | `admin@restaurant.com` | `password123` | OWNER — of the sample demo restaurant from `prisma:seed` |
+| Demo platform admin | `admin@restaurant.com` | `password123` | SUPER_ADMIN — same level as the Site Owner, from `prisma:seed` |
+| Demo Owner | `owner@restaurant.com` | `password123` | OWNER — of the sample demo restaurant from `prisma:seed` |
+| Demo Manager | `manager@restaurant.com` | `password123` | MANAGER — only on databases seeded with this version. **Don't re-run `prisma:seed` on an existing database** (it creates a second demo restaurant); create a manager from Staff Management instead. |
 
 Change both passwords before this ever goes near real users.
 
