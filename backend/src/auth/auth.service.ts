@@ -30,7 +30,31 @@ export class AuthService {
   async signupOwner(dto: SignupOwnerDto) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
-      throw new BadRequestException('An account with this email already exists');
+      if (existing.isVerified) {
+        throw new BadRequestException('An account with this email already exists. Please log in.');
+      }
+      // Account exists but was never verified (e.g. from a previous signup where email timed out)
+      const hashedPassword = await bcrypt.hash(dto.password, 10);
+      const otp = this.generateOtp();
+      const otpExpiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+      await this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          name: dto.name,
+          password: hashedPassword,
+          otpCode: otp,
+          otpExpiry,
+          otpAttempts: 0,
+        },
+      });
+
+      await this.mailService.sendOtp(dto.email, otp);
+
+      return {
+        message: 'Account created. A verification code has been sent to your email.',
+        email: dto.email,
+      };
     }
 
     let ownerRole = await this.prisma.role.findUnique({ where: { name: 'OWNER' } });

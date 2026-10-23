@@ -8,13 +8,18 @@ export class MailService {
 
   constructor() {
     if (process.env.SMTP_HOST) {
+      const port = Number(process.env.SMTP_PORT || 587);
+      const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT || 587),
-        secure: process.env.SMTP_SECURE === 'true',
+        port,
+        secure: isSecure,
         auth: process.env.SMTP_USER
           ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
           : undefined,
+        connectionTimeout: 10000, // 10s timeout
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
       });
     }
   }
@@ -27,8 +32,15 @@ export class MailService {
       return { dev: true };
     }
 
-    const from = process.env.MAIL_FROM || 'no-reply@restaurant-erp.example';
-    return this.transporter.sendMail({ from, to, subject, text, html });
+    try {
+      const from = process.env.MAIL_FROM || 'no-reply@restaurant-erp.example';
+      return await this.transporter.sendMail({ from, to, subject, text, html });
+    } catch (err: any) {
+      this.logger.error(`Failed to send email to ${to}: ${err.message}`);
+      // Fallback: always log to console so admin/user can find OTP in Render logs even if SMTP fails
+      this.logger.warn(`[FALLBACK EMAIL LOG] To: ${to} | Subject: ${subject}\n${text}`);
+      return { error: err.message, devFallback: true };
+    }
   }
 
   async sendOtp(to: string, otp: string) {
