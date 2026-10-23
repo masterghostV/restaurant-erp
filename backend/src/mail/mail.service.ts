@@ -24,23 +24,62 @@ export class MailService {
     }
   }
 
-  async send(to: string, subject: string, text: string, html?: string) {
-    if (!this.transporter) {
-      // No SMTP provider configured — log instead of failing, so local
-      // development and testing still work end-to-end.
-      this.logger.warn(`[DEV EMAIL] To: ${to} | Subject: ${subject}\n${text}`);
-      return { dev: true };
+  private async sendViaResend(to: string, subject: string, text: string, html?: string) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.MAIL_FROM || 'Restaurant ERP <onboarding@resend.dev>';
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        text,
+        html: html || text,
+      }),
+    });
+
+    const data: any = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.message || `Resend API error: ${response.status}`);
     }
 
-    try {
-      const from = process.env.MAIL_FROM || 'no-reply@restaurant-erp.example';
-      return await this.transporter.sendMail({ from, to, subject, text, html });
-    } catch (err: any) {
-      this.logger.error(`Failed to send email to ${to}: ${err.message}`);
-      // Fallback: always log to console so admin/user can find OTP in Render logs even if SMTP fails
-      this.logger.warn(`[FALLBACK EMAIL LOG] To: ${to} | Subject: ${subject}\n${text}`);
-      return { error: err.message, devFallback: true };
+    this.logger.log(`[Resend] Email successfully sent to ${to} (ID: ${data.id})`);
+    return data;
+  }
+
+  async send(to: string, subject: string, text: string, html?: string) {
+    // 1. Use Resend API if RESEND_API_KEY is configured (Port 443 HTTPS - never blocked on Render)
+    if (process.env.RESEND_API_KEY) {
+      try {
+        return await this.sendViaResend(to, subject, text, html);
+      } catch (err: any) {
+        this.logger.error(`Failed to send email via Resend to ${to}: ${err.message}`);
+        this.logger.warn(`[FALLBACK EMAIL LOG] To: ${to} | Subject: ${subject}\n${text}`);
+        return { error: err.message, devFallback: true };
+      }
     }
+
+    // 2. Fallback to SMTP if configured
+    if (this.transporter) {
+      try {
+        const from = process.env.MAIL_FROM || 'no-reply@restaurant-erp.example';
+        return await this.transporter.sendMail({ from, to, subject, text, html });
+      } catch (err: any) {
+        this.logger.error(`Failed to send email via SMTP to ${to}: ${err.message}`);
+        // Fallback: always log to console so admin/user can find OTP in Render logs
+        this.logger.warn(`[FALLBACK EMAIL LOG] To: ${to} | Subject: ${subject}\n${text}`);
+        return { error: err.message, devFallback: true };
+      }
+    }
+
+    // 3. Fallback: Log to console if no email service configured
+    this.logger.warn(`[DEV EMAIL] To: ${to} | Subject: ${subject}\n${text}`);
+    return { dev: true };
   }
 
   async sendOtp(to: string, otp: string) {
